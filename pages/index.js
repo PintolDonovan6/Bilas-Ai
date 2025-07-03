@@ -1,50 +1,52 @@
 import { useState } from 'react';
 
-export default function HomePage() {
+export default function Home() {
   const [prompt, setPrompt] = useState('');
   const [image, setImage] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
-  const handleGenerate = async () => {
+  async function handleGenerate() {
     setLoading(true);
+    setError(null);
     setImage(null);
+
     try {
       const res = await fetch('/api/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ prompt }),
       });
+
       const data = await res.json();
-      if (data.image) {
-        setImage(data.image);
-      } else {
-        alert(data.error || 'Something went wrong');
-      }
+      if (!res.ok) throw new Error(data.error || 'Failed to generate image');
+
+      setImage(data.image);
     } catch (err) {
-      alert('Failed to connect to the server.');
+      setError(err.message);
     }
     setLoading(false);
-  };
+  }
 
   return (
-    <div style={{ padding: 30, fontFamily: 'sans-serif' }}>
-      <h1>PNG Cartoon Generator</h1>
+    <main style={{ padding: 20, fontFamily: 'sans-serif' }}>
+      <h1>Generate Image with Replicate API</h1>
       <input
         type="text"
         value={prompt}
         onChange={(e) => setPrompt(e.target.value)}
-        placeholder="Describe your cartoon..."
-        style={{ width: '300px', padding: 8 }}
+        placeholder="Enter prompt here"
+        style={{ width: '80%', padding: '8px' }}
       />
-      <button onClick={handleGenerate} style={{ marginLeft: 10, padding: '8px 16px' }}>
-        Generate
+      <button onClick={handleGenerate} disabled={loading || !prompt} style={{ marginLeft: 10, padding: '8px 16px' }}>
+        {loading ? 'Generating...' : 'Generate'}
       </button>
-      {loading && <p>Generating image...</p>}
+      {error && <p style={{ color: 'red' }}>Error: {error}</p>}
       {image && (
         <div style={{ marginTop: 20 }}>
-          <img src={image} alt="Generated cartoon" width="512" height="512" />
+          <img src={image} alt="Generated" style={{ maxWidth: '100%', height: 'auto' }} />
         </div>
       )}
-    </div>
+    </main>
   );
 }

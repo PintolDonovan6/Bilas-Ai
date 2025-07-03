@@ -1,35 +1,38 @@
 export default async function handler(req, res) {
-  if (req.method !== 'POST') {
-    return res.status(405).json({ message: 'Only POST requests allowed' });
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "Only POST allowed" });
   }
 
   const { prompt } = req.body;
-  if (!prompt) {
-    return res.status(400).json({ error: 'Prompt is required' });
+
+  if (!prompt || prompt.trim() === "") {
+    return res.status(400).json({ error: "Prompt is required" });
   }
 
   try {
-    const response = await fetch('https://api.replicate.com/v1/predictions', {
-      method: 'POST',
+    // Use Replicate's stable-diffusion model latest version
+    const response = await fetch("https://api.replicate.com/v1/predictions", {
+      method: "POST",
       headers: {
         Authorization: `Token ${process.env.REPLICATE_API_TOKEN}`,
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        version: 'a9758cb3b9dfce70d5d7a27447f0e9b3c6e9f1c77d45ee49f9e416a13f3e6605d',
+        version: "7de24e09108b8ed6d5fbb1f027ef14e9b6f90b46b62d248ea707e74d1bf1e14f", // stable-diffusion v2.1 latest version
         input: { prompt, width: 512, height: 512 },
       }),
     });
 
     if (!response.ok) {
-      const err = await response.json();
-      return res.status(response.status).json({ error: err.error || 'Replicate API error' });
+      const err = await response.text();
+      return res.status(500).json({ error: `Replicate API error: ${err}` });
     }
 
     const prediction = await response.json();
 
+    // Poll until complete
     let result = prediction;
-    while (result.status !== 'succeeded' && result.status !== 'failed') {
+    while (result.status !== "succeeded" && result.status !== "failed") {
       await new Promise((r) => setTimeout(r, 2000));
       const pollRes = await fetch(`https://api.replicate.com/v1/predictions/${prediction.id}`, {
         headers: { Authorization: `Token ${process.env.REPLICATE_API_TOKEN}` },
@@ -37,13 +40,13 @@ export default async function handler(req, res) {
       result = await pollRes.json();
     }
 
-    if (result.status === 'succeeded') {
+    if (result.status === "succeeded") {
       return res.status(200).json({ image: result.output[0] });
+    } else {
+      return res.status(500).json({ error: "Image generation failed." });
     }
-
-    return res.status(500).json({ error: 'Image generation failed.' });
   } catch (error) {
-    console.error('API error:', error);
-    return res.status(500).json({ error: 'Internal server error' });
+    console.error("Error in generate API:", error);
+    return res.status(500).json({ error: "Internal server error" });
   }
 }

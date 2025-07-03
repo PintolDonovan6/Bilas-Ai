@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-export default function Home() {
+export default function HomePage() {
   const [prompt, setPrompt] = useState('');
   const [image, setImage] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -21,8 +21,7 @@ export default function Home() {
         alert(data.error || 'Something went wrong');
       }
     } catch (err) {
-      console.error(err);
-      alert('Failed to reach server');
+      alert('Failed to connect to the server.');
     }
     setLoading(false);
   };
@@ -40,7 +39,7 @@ export default function Home() {
       <button onClick={handleGenerate} style={{ marginLeft: 10, padding: '8px 16px' }}>
         Generate
       </button>
-      {loading && <p>Generating...</p>}
+      {loading && <p>Generating image...</p>}
       {image && (
         <div style={{ marginTop: 20 }}>
           <img src={image} alt="Generated cartoon" width="512" height="512" />

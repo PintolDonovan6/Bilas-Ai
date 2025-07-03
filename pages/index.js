@@ -8,26 +8,22 @@ export default function Home() {
   const handleGenerate = async () => {
     setLoading(true);
     setImage(null);
-
     try {
       const res = await fetch('/api/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ prompt }),
       });
-
       const data = await res.json();
       if (data.image) {
         setImage(data.image);
       } else {
         alert(data.error || 'Something went wrong');
-        console.error('Error:', data);
       }
     } catch (err) {
-      alert('Failed to connect to server');
       console.error(err);
+      alert('Failed to reach server');
     }
-
     setLoading(false);
   };
 
@@ -44,7 +40,7 @@ export default function Home() {
       <button onClick={handleGenerate} style={{ marginLeft: 10, padding: '8px 16px' }}>
         Generate
       </button>
-      {loading && <p>Generating image...</p>}
+      {loading && <p>Generating...</p>}
       {image && (
         <div style={{ marginTop: 20 }}>
           <img src={image} alt="Generated cartoon" width="512" height="512" />

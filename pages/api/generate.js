@@ -13,7 +13,7 @@ export default async function handler(req, res) {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        version: 'a9758cb3b9dfce70d5d7a27447f0e9b3c6e9f1c77d45ee49f9e416a13f3e6605d',
+        version: 'a9758cb3b9dfce70d5d7a27447f0e9f3c6e9f1c77d45ee49f9e416a13f3e6605d',
         input: { prompt, width: 512, height: 512 },
       }),
     });
@@ -31,12 +31,12 @@ export default async function handler(req, res) {
     }
 
     if (result.status === 'succeeded') {
-      res.status(200).json({ image: result.output[0] });
+      return res.status(200).json({ image: result.output[0] });
     } else {
-      res.status(500).json({ error: 'Image generation failed.' });
+      return res.status(500).json({ error: 'Image generation failed.' });
     }
   } catch (error) {
     console.error(error);
-    res.status(500).json({ error: 'Internal server error' });
+    return res.status(500).json({ error: 'Internal server error' });
   }
 }

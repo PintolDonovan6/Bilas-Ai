@@ -1,42 +1,34 @@
+// pages/api/generate.js
+
+import { Configuration, OpenAIApi } from "openai";
+
+const configuration = new Configuration({
+  apiKey: process.env.OPENAI_API_KEY,
+});
+const openai = new OpenAIApi(configuration);
+
 export default async function handler(req, res) {
-  if (req.method !== 'POST') {
-    return res.status(405).json({ message: 'Only POST requests allowed' });
+  if (req.method !== "POST") {
+    return res.status(405).json({ message: "Only POST requests allowed" });
   }
 
   const { prompt } = req.body;
 
+  if (!prompt || prompt.trim() === "") {
+    return res.status(400).json({ error: "Prompt is required" });
+  }
+
   try {
-    const response = await fetch('https://api.replicate.com/v1/predictions', {
-      method: 'POST',
-      headers: {
-        Authorization: `Token ${process.env.REPLICATE_API_TOKEN}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        version: 'a9758cb3b9dfce70d5d7a27447f0e9b3c6e9f1c77d45ee49f9e416a13f3e6605d',
-        input: { prompt, width: 512, height: 512 },
-      }),
+    const response = await openai.createImage({
+      prompt,
+      n: 1,
+      size: "512x512",
     });
 
-    const prediction = await response.json();
-    if (prediction.error) throw new Error(prediction.error);
-
-    let result = prediction;
-    while (result.status !== 'succeeded' && result.status !== 'failed') {
-      await new Promise((r) => setTimeout(r, 2000));
-      const pollRes = await fetch(`https://api.replicate.com/v1/predictions/${prediction.id}`, {
-        headers: { Authorization: `Token ${process.env.REPLICATE_API_TOKEN}` },
-      });
-      result = await pollRes.json();
-    }
-
-    if (result.status === 'succeeded') {
-      return res.status(200).json({ image: result.output[0] });
-    } else {
-      return res.status(500).json({ error: 'Image generation failed.' });
-    }
+    const imageUrl = response.data.data[0].url;
+    res.status(200).json({ image: imageUrl });
   } catch (error) {
-    console.error(error);
-    return res.status(500).json({ error: 'Internal server error' });
+    console.error("OpenAI error:", error.response?.data || error.message);
+    res.status(500).json({ error: "Image generation failed" });
   }
 }

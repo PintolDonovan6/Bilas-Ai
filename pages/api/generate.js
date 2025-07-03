@@ -13,40 +13,37 @@ export default async function handler(req, res) {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        version: 'c7cf29c06c8e8e7c5ba7df4e9df3a0b14a509a43408e7a2e4e2e4e3ec60fa4d2', // 👈 SDXL 1.0
+        version: "db21e45d3c87149b3133caf3f7ecb5e42606aa09ff733730632f4c1dfc4e5c0d", // working model
         input: {
           prompt,
-          width: 512,
-          height: 512,
         },
       }),
     });
 
     const prediction = await response.json();
+
     if (prediction.error) {
-      console.error('Prediction error:', prediction.error);
       return res.status(500).json({ error: prediction.error });
     }
 
     let result = prediction;
     while (result.status !== 'succeeded' && result.status !== 'failed') {
-      await new Promise((r) => setTimeout(r, 2000));
-      const pollRes = await fetch(`https://api.replicate.com/v1/predictions/${prediction.id}`, {
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+      const poll = await fetch(`https://api.replicate.com/v1/predictions/${result.id}`, {
         headers: {
           Authorization: `Token ${process.env.REPLICATE_API_TOKEN}`,
         },
       });
-      result = await pollRes.json();
+      result = await poll.json();
     }
 
     if (result.status === 'succeeded') {
-      return res.status(200).json({ image: result.output[0] });
+      res.status(200).json({ image: result.output[0] });
     } else {
-      console.error('Generation failed:', result);
-      return res.status(500).json({ error: 'Image generation failed.' });
+      res.status(500).json({ error: 'Image generation failed.' });
     }
-  } catch (error) {
-    console.error('Server error:', error);
-    return res.status(500).json({ error: 'Internal server error' });
+  } catch (err) {
+    console.error('Server error:', err);
+    res.status(500).json({ error: 'Internal server error' });
   }
 }

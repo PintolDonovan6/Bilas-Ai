@@ -4,6 +4,9 @@ export default async function handler(req, res) {
   }
 
   const { prompt } = req.body;
+  if (!prompt) {
+    return res.status(400).json({ error: 'Prompt is required' });
+  }
 
   try {
     const response = await fetch('https://api.replicate.com/v1/predictions', {
@@ -13,35 +16,34 @@ export default async function handler(req, res) {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        version: 'db21e45a3b5402d0e7cfd1430a4e26c4caa13b6c5581aab3a7583d10652d9b61',
-        input: {
-          prompt: prompt,
-          width: 512,
-          height: 512
-        },
+        version: 'a9758cb3b9dfce70d5d7a27447f0e9b3c6e9f1c77d45ee49f9e416a13f3e6605d',
+        input: { prompt, width: 512, height: 512 },
       }),
     });
 
-    let prediction = await response.json();
-    if (prediction.error) throw new Error(prediction.error);
+    if (!response.ok) {
+      const err = await response.json();
+      return res.status(response.status).json({ error: err.error || 'Replicate API error' });
+    }
 
-    while (prediction.status !== 'succeeded' && prediction.status !== 'failed') {
-      await new Promise((resolve) => setTimeout(resolve, 2000));
+    const prediction = await response.json();
+
+    let result = prediction;
+    while (result.status !== 'succeeded' && result.status !== 'failed') {
+      await new Promise((r) => setTimeout(r, 2000));
       const pollRes = await fetch(`https://api.replicate.com/v1/predictions/${prediction.id}`, {
-        headers: {
-          Authorization: `Token ${process.env.REPLICATE_API_TOKEN}`,
-        },
+        headers: { Authorization: `Token ${process.env.REPLICATE_API_TOKEN}` },
       });
-      prediction = await pollRes.json();
+      result = await pollRes.json();
     }
 
-    if (prediction.status === 'succeeded') {
-      return res.status(200).json({ image: prediction.output[0] });
-    } else {
-      return res.status(500).json({ error: 'Image generation failed.' });
+    if (result.status === 'succeeded') {
+      return res.status(200).json({ image: result.output[0] });
     }
+
+    return res.status(500).json({ error: 'Image generation failed.' });
   } catch (error) {
-    console.error('Error:', error.message);
-    return res.status(500).json({ error: error.message || 'Internal server error' });
+    console.error('API error:', error);
+    return res.status(500).json({ error: 'Internal server error' });
   }
 }

@@ -13,37 +13,35 @@ export default async function handler(req, res) {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        version: "db21e45d3c87149b3133caf3f7ecb5e42606aa09ff733730632f4c1dfc4e5c0d", // working model
+        version: 'db21e45a3b5402d0e7cfd1430a4e26c4caa13b6c5581aab3a7583d10652d9b61',
         input: {
-          prompt,
+          prompt: prompt,
+          width: 512,
+          height: 512
         },
       }),
     });
 
-    const prediction = await response.json();
+    let prediction = await response.json();
+    if (prediction.error) throw new Error(prediction.error);
 
-    if (prediction.error) {
-      return res.status(500).json({ error: prediction.error });
-    }
-
-    let result = prediction;
-    while (result.status !== 'succeeded' && result.status !== 'failed') {
+    while (prediction.status !== 'succeeded' && prediction.status !== 'failed') {
       await new Promise((resolve) => setTimeout(resolve, 2000));
-      const poll = await fetch(`https://api.replicate.com/v1/predictions/${result.id}`, {
+      const pollRes = await fetch(`https://api.replicate.com/v1/predictions/${prediction.id}`, {
         headers: {
           Authorization: `Token ${process.env.REPLICATE_API_TOKEN}`,
         },
       });
-      result = await poll.json();
+      prediction = await pollRes.json();
     }
 
-    if (result.status === 'succeeded') {
-      res.status(200).json({ image: result.output[0] });
+    if (prediction.status === 'succeeded') {
+      return res.status(200).json({ image: prediction.output[0] });
     } else {
-      res.status(500).json({ error: 'Image generation failed.' });
+      return res.status(500).json({ error: 'Image generation failed.' });
     }
-  } catch (err) {
-    console.error('Server error:', err);
-    res.status(500).json({ error: 'Internal server error' });
+  } catch (error) {
+    console.error('Error:', error.message);
+    return res.status(500).json({ error: error.message || 'Internal server error' });
   }
 }

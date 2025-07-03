@@ -1,5 +1,7 @@
 export default async function handler(req, res) {
-  if (req.method !== 'POST') return res.status(405).json({ message: 'Only POST allowed' });
+  if (req.method !== 'POST') {
+    return res.status(405).json({ message: 'Only POST requests allowed' });
+  }
 
   const { prompt } = req.body;
 
@@ -16,26 +18,25 @@ export default async function handler(req, res) {
       }),
     });
 
-    const data = await response.json();
+    const prediction = await response.json();
+    if (prediction.error) throw new Error(prediction.error);
 
-    if (data.error) throw new Error(data.error);
-
-    let result = data;
+    let result = prediction;
     while (result.status !== 'succeeded' && result.status !== 'failed') {
       await new Promise((r) => setTimeout(r, 2000));
-      const poll = await fetch(`https://api.replicate.com/v1/predictions/${data.id}`, {
+      const pollRes = await fetch(`https://api.replicate.com/v1/predictions/${prediction.id}`, {
         headers: { Authorization: `Token ${process.env.REPLICATE_API_TOKEN}` },
       });
-      result = await poll.json();
+      result = await pollRes.json();
     }
 
     if (result.status === 'succeeded') {
       res.status(200).json({ image: result.output[0] });
     } else {
-      res.status(500).json({ error: 'Image generation failed' });
+      res.status(500).json({ error: 'Image generation failed.' });
     }
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Internal error' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Internal server error' });
   }
 }
